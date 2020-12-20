@@ -39,6 +39,10 @@ export class Queue<T, R> {
     this.deferreds = [];
   }
 
+  get size(): number {
+    return this.materials.length;
+  }
+
   enqueue(material: T): Promise<R> {
     const deferred = new Deferred<R>();
 
@@ -53,7 +57,7 @@ export class Queue<T, R> {
   }
 
   release(): void {
-    if (this.running <= this.options.concurrency) {
+    if (this.running < this.options.concurrency) {
       const { timeout } = this.options;
       const material = this.materials.shift();
       const deferred = this.deferreds.shift();
