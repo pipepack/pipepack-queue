@@ -7,6 +7,7 @@
 import ptimeout from 'p-timeout';
 // internal
 import { Deferred } from './Defered';
+import { LinkedList } from './LinkedList';
 
 export interface QueueWorker<T, R> {
   (payload: T): Promise<R>;
@@ -25,22 +26,22 @@ export class Queue<T, R> {
   private running: number;
 
   // use array for the moment, consider LinkedList as better choice perhaps
-  // zip materials and deferreds for convenience
-  private materials: T[];
+  private materials: LinkedList<T>;
 
-  private deferreds: Deferred<R>[];
+  // zip materials and deferreds for convenience
+  private deferreds: LinkedList<Deferred<R>>;
 
   constructor(
     private readonly worker: QueueWorker<T, R>,
     private readonly options: QueueOptions
   ) {
     this.running = 0;
-    this.materials = [];
-    this.deferreds = [];
+    this.materials = new LinkedList();
+    this.deferreds = new LinkedList();
   }
 
   get size(): number {
-    return this.materials.length;
+    return this.materials.size();
   }
 
   enqueue(material: T): Promise<R> {
@@ -66,10 +67,10 @@ export class Queue<T, R> {
       if (material && deferred) {
         this.running += 1;
 
-        ptimeout(this.worker(material), timeout)
-          .then((response) => deferred.resolve(response))
+        ptimeout(this.worker(material.value), timeout)
+          .then((response) => deferred.value.resolve(response))
           .catch((reason) => {
-            deferred.reject(reason);
+            deferred.value.reject(reason);
           })
           .finally(() => {
             this.running -= 1;
@@ -82,7 +83,7 @@ export class Queue<T, R> {
 
   // restore queued material
   kill(): void {
-    this.materials = [];
-    this.deferreds = [];
+    this.materials.restore();
+    this.deferreds.restore();
   }
 }
